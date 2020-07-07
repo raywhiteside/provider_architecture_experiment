@@ -77,10 +77,6 @@ class UserSettings with ChangeNotifier {
     getSettings();
   }
 
-  UserSettings.clone(UserSettings original) {
-    settings = Map.from(original.settings);
-  }
-
   getSettings() async {
     print('starting to fetch settings from backend');
     await Future.delayed(const Duration(seconds: 2));
@@ -107,7 +103,7 @@ class PageModel with ChangeNotifier {
       print('current settings are ${userSettings.settings}');
     if(userSettings != newSettings) {
       print('actually updating settings in PageModel');
-      userSettings = UserSettings.clone(newSettings);
+      userSettings = newSettings;
       notifyListeners();
     }
   }
