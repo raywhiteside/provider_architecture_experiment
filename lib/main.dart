@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:state_notifier/state_notifier.dart';
+import 'package:flutter_state_notifier/flutter_state_notifier.dart';
 
 //##############################################################################
 // UNINTERESTING BOILERPLATE START
@@ -38,22 +40,19 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    final pageView = Consumer<PageModel> (
-      builder: (_, pageModel, __) =>
-        PageView(model: pageModel),
-    );
-
-    final pageModelProvider = ChangeNotifierProxyProvider<UserSettings, PageModel> (
-      create: (_) => PageModel(),
-      update: (_, userSettings, pageModel) =>
-        pageModel
-          ..updateSettings(userSettings),
-      child: pageView,
-    );
-
-    final userSettingsProvider = ChangeNotifierProvider<UserSettings> (
-      create: (_) => UserSettings(),
-      child: pageModelProvider,
+    final userSettingsProvider = StateNotifierProvider <
+      UserSettingsController, UserSettings
+    > (
+      create: (_) => UserSettingsController(),
+      builder: (context, _) {
+        return StateNotifierBuilder<UserSettings> (
+          stateNotifier: context.watch<UserSettingsController>(),
+          builder: (_, userSettings, __) {
+            print('rebuilding widget tree due to change of state');
+            return PageView(model: PageModel(userSettings));
+          },
+        );
+      },
     );
 
     return Scaffold(
@@ -66,47 +65,49 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class UserSettings with ChangeNotifier {
-  Map<String, String> settings;
-  UserSettings()
-  : settings = {
-      'first_setting': 'UNINITIALIZED',
-      'second_setting': 'UNINITIALIZED',
-    }
+class UserSettings {
+  final Map<String, String> settings;
+  const UserSettings(this.settings);
+}
+
+class UserSettingsController extends StateNotifier<UserSettings> {
+
+  static const Map<String, String> initialSettings = {
+    'first_setting': 'UNINITIALIZED',
+    'second_setting': 'UNINITIALIZED',
+  };
+
+  UserSettingsController() : super(UserSettings(initialSettings))
   {
     getSettings();
+  }
+
+  @override
+  @protected
+  set state(UserSettings newSettings) {
+    super.state = newSettings;
+    print('controller state updated');
   }
 
   getSettings() async {
     print('starting to fetch settings from backend');
     await Future.delayed(const Duration(seconds: 2));
     print('finished fetching settings from backend');
-    settings = {
+    final newSettings = {
       'first_setting': 'UPDATED_TO_INTERESTING_VALUE',
       'second_setting': 'UPDATED_TO_INTERESTING_VALUE',
     };
-    print('notifying listeners of settings update');
-    notifyListeners();
+    state = UserSettings(newSettings);
   }
+
 }
 
-class PageModel with ChangeNotifier {
+class PageModel {
 
-  UserSettings userSettings;
+  final UserSettings userSettings;
 
-  PageModel();
+  const PageModel(this.userSettings);
 
-  updateSettings(UserSettings newSettings) {
-    print('considering updating settings in PageModel');
-    print('new settings are ${newSettings.settings}');
-    if(userSettings != null)
-      print('current settings are ${userSettings.settings}');
-    if(userSettings != newSettings) {
-      print('actually updating settings in PageModel');
-      userSettings = newSettings;
-      notifyListeners();
-    }
-  }
 }
 
 class PageView extends StatelessWidget {
@@ -122,4 +123,5 @@ class PageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text('first setting is ${model.userSettings.settings['first_setting']}');
   }
+
 }
